@@ -2,7 +2,7 @@
      rain.mp3     loops while it rains
      birds.mp3    dawn chorus: starts in the dark before sunrise, fades through the morning
      rooster.mp3  once, at sunrise
-     hens.mp3     soft clucking, looping through the day and stopping at dusk
+     hens.mp3     soft clucking somewhere in the yard, now and then: a bout, then quiet; through the day, stopping at dusk
      crickets.mp3 one cricket, chirp after chirp; at night it is played as several crickets around the garden,
                   now a few together, now just one or another
      thunder1-4   single claps; the weather calls strike() at each lightning flash and the thunder follows
@@ -11,12 +11,14 @@
 
 const FILES = { rain: 'rain.mp3', birds: 'birds.mp3', rooster: 'rooster.mp3', hens: 'hens.mp3', crickets: 'crickets.mp3',
   thunder1: 'thunder1.mp3', thunder2: 'thunder2.mp3', thunder3: 'thunder3.mp3', thunder4: 'thunder4.mp3' };
-const LEVEL = { master: 0.85, rain: 0.6, birds: 0.45, hens: 0.42, rooster: 0.18, crickets: 0.06, thunder: 0.95 };
+const LEVEL = { master: 0.85, rain: 0.6, birds: 0.45, hens: 0.2, rooster: 0.18, crickets: 0.06, thunder: 0.95 };
 // The crickets of the garden: each is the same recording at its own pitch (rate), side (pan: -1 left .. 1 right) and distance (gain).
 const CRICKETS = [{ rate: 1, pan: -0.5, gain: 1 }, { rate: 0.9, pan: 0.6, gain: 0.7 }, { rate: 1.07, pan: 0.15, gain: 0.45 },
   { rate: 0.95, pan: -0.9, gain: 0.35 }, { rate: 1.13, pan: 0.9, gain: 0.3 }];
 // How many may sing at once. One is drawn every few seconds, so most of the time it is a lone cricket and now and then a small chorus.
 const CROWDS = [1, 1, 1, 2, 2, 3, 4];
+// The hens are heard in bouts: each lasts `bout` seconds at some share (`level`) of LEVEL.hens, then `gap` seconds of quiet.
+const HENS = { bout: [5, 15], gap: [4, 30], level: [0.3, 1] };
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const ramp = (a, b, v) => clamp((v - a) / (b - a), 0, 1);
 const between = (a, b) => a + Math.random() * (b - a);
@@ -36,8 +38,8 @@ export function createSound(button) {
   };
 
   // a seamless loop: each pass fades in over the tail of the one before (equal-power, so the level holds)
-  function loop(buffer, wanted = 1.6) {
-    const out = ctx.createGain(); out.gain.value = 0; out.connect(master);
+  function loop(buffer, wanted = 1.6, to = master) {
+    const out = ctx.createGain(); out.gain.value = 0; out.connect(to);
     const dur = buffer.duration, overlap = Math.min(wanted, dur * 0.3);      // the two fades of one pass must never meet
     const n = 64, up = new Float32Array(n), down = new Float32Array(n);
     for (let i = 0; i < n; i++) { up[i] = Math.sin((i / (n - 1)) * Math.PI / 2); down[i] = Math.cos((i / (n - 1)) * Math.PI / 2); }
@@ -69,6 +71,27 @@ export function createSound(button) {
     g.gain.setValueAtTime(gain, t + d - fade - 0.03); g.gain.linearRampToValueAtTime(0, t + d - 0.02);
     if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(master); } else g.connect(master);
     src.start(t);
+  }
+
+  // Hens now and then: a gain after the hens loop that opens for a bout and closes again. Every bout is laid down whole
+  // on the audio clock, so a slowed timer (hidden tab) only stretches the quiet and a suspended context just pauses it.
+  function bouts() {
+    const out = ctx.createGain(); out.gain.value = 0; out.connect(master);
+    let next = ctx.currentTime + between(1, 6);
+    const tick = () => {
+      const t = ctx.currentTime;
+      if (t >= next && ctx.state === 'running') {
+        const at = t + 0.1, len = between(...HENS.bout), a = between(...HENS.level), b = between(...HENS.level);
+        const rise = between(1.2, 2.5), fall = between(2, 3.5), g = out.gain;
+        // up to one level, drifting to another, and away; it starts from the silence the last bout ended in
+        g.cancelScheduledValues(at); g.setValueAtTime(0, at);
+        g.linearRampToValueAtTime(a, at + rise); g.linearRampToValueAtTime(b, at + len - fall); g.linearRampToValueAtTime(0, at + len);
+        next = at + len + between(...HENS.gap);
+      }
+      setTimeout(tick, 1000);
+    };
+    tick();
+    return out;
   }
 
   // Crickets. The recording is chirps with silence between them, so a cricket can start and stop in a silence and
@@ -134,7 +157,7 @@ export function createSound(button) {
       }));
       if (buf.rain) layer.rain = loop(buf.rain);
       if (buf.birds) layer.birds = loop(buf.birds, 2.2);
-      if (buf.hens) layer.hens = loop(buf.hens, Math.min(2.2, buf.hens.duration * 0.25));
+      if (buf.hens) layer.hens = loop(buf.hens, Math.min(2.2, buf.hens.duration * 0.25), bouts());
       if (buf.crickets) layer.crickets = crickets(buf.crickets);
       started = true;
       master.gain.setTargetAtTime(enabled ? LEVEL.master : 0, ctx.currentTime, 0.6);
@@ -181,7 +204,7 @@ export function createSound(button) {
       const birds = Math.max(dawn, evening, 0) * (1 - rain);
       if (layer.rain) layer.rain.gain.setTargetAtTime(LEVEL.rain * rain, t, 0.8);
       if (layer.birds) layer.birds.gain.setTargetAtTime(LEVEL.birds * birds, t, 0.8);
-      // hens: quiet clucking once the sun is up, gone by dusk, and under cover while it rains
+      // hens: quiet clucking once the sun is up, gone by dusk, and under cover while it rains (the bouts come on top of this)
       const hens = Math.min(ramp(0.13, 0.19, p), 1 - ramp(0.79, 0.855, p)) * (1 - rain);
       if (layer.hens) layer.hens.gain.setTargetAtTime(LEVEL.hens * Math.max(hens, 0), t, 1.5);
       // crickets: they start up as the light goes after sunset and hand over to the birds before sunrise
