@@ -221,7 +221,37 @@ function makeSheet(index, frontMap, backMap, isCover) {
 }
 // Pages (and the cards taped to them) are half self-lit: whatever the sky and the lamps are doing (blue noon, orange lamplight), the writing stays readable.
 function paperMaterial(map, side) {
-  return new THREE.MeshStandardMaterial({ map, side, roughness: 0.92, metalness: 0, color: '#8d8880', emissive: '#ffffff', emissiveMap: map, emissiveIntensity: 0.5, envMapIntensity: 0.1 });
+  const m = new THREE.MeshStandardMaterial({ map, side, roughness: 0.92, metalness: 0, color: '#8d8880', emissive: '#ffffff', emissiveMap: map, emissiveIntensity: 0.5, envMapIntensity: 0.1 });
+  m.onBeforeCompile = finerPaper; return m;
+}
+// A page on screen is two to three times smaller than its scan, and the size of scan the graphics card would pick for it is
+// too blurred for pen strokes: it is told to read half a step finer (the edge smoothing and the slanted-view filter keep it calm).
+function finerPaper(shader) {
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment.replace('texture2D( map, vMapUv )', 'texture2D( map, vMapUv, -0.5 )'))
+    .replace('#include <emissivemap_fragment>', THREE.ShaderChunk.emissivemap_fragment.replace('texture2D( emissiveMap, vEmissiveMapUv )', 'texture2D( emissiveMap, vEmissiveMapUv, -0.5 )'));
+}
+/* The smaller copies of a scan, which is what the page is drawn from when it is smaller on screen than the scan. Left to
+   the graphics card they are averaged as light, and a dark pen stroke one pixel wide comes out of two halvings as a pale
+   grey thread: the writing looks rubbed out. Made here instead: each copy half the one before, averaged the way a browser
+   shrinks a picture (which keeps thin dark lines darker), and what did turn grey deepened a little more with every step
+   (the copy multiplied by itself: paper, nearly white, hardly moves). The scan itself, the first level, is untouched. */
+function inkMips(t) {
+  const levels = [t.image];
+  for (let w = t.image.width, h = t.image.height; w > 1 || h > 1;) {
+    w = Math.max(1, w >> 1); h = Math.max(1, h >> 1);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(levels[levels.length - 1], 0, 0, w, h);
+    levels.push(c);
+  }
+  levels.forEach((c, i) => {
+    if (!i) return;
+    const g = c.getContext('2d'); g.globalCompositeOperation = 'multiply'; g.globalAlpha = Math.min(1, 0.35 * i); g.drawImage(c, 0, 0);
+  });
+  t.mipmaps = levels;
+  // once they are on the graphics card the canvases are let go (should the card ever need the texture again, it makes its own copies as before)
+  t.onUpdate = () => { levels.forEach((c, i) => { if (i) c.width = c.height = 0; }); t.mipmaps = []; t.generateMipmaps = true; t.onUpdate = null; };
+  return t;
 }
 
 function layoutSheet(s) {
@@ -292,7 +322,7 @@ function makeCard(def) {
     gF.setIndex(idx); gB.setIndex(idx);
     return { pos, gF, gB, a0, a1, o0, o1 };
   };
-  const tex = (name) => { const t = texLoader.load(bookFile(name)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; };
+  const tex = (name) => { const t = texLoader.load(bookFile(name), inkMips); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; };
   const body = grid(0, la, 0, lo), halo = grid(-CARD.halo, la + CARD.halo, -CARD.halo, lo + CARD.halo);
   // Which way the net faces follows from the taped edge (tape-edge direction x across-the-card direction): with the
   // tape on the left it faces away from the paper, with the tape on top towards it. The printed side goes on the side
@@ -414,7 +444,7 @@ function putPage() {
   const [pg, t] = arriving.shift();
   if (!pg.asked) { t.dispose(); return; }      // (turned far away again before it arrived)
   if (pg.tex) pg.tex.dispose();
-  pg.tex = t; pg.material.map = pg.material.emissiveMap = t;
+  pg.tex = inkMips(t); pg.material.map = pg.material.emissiveMap = t;
 }
 
 function buildBook() {
