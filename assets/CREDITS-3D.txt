@@ -1,0 +1,9 @@
+Modelos 3D usados em plants.glb / 3D models used in plants.glb
+(reduzidos e adaptados para este site por tools/build_plants.py / reduced and adapted for this site)
+
+"Grass pack (lowpoly, game-ready)" (https://skfb.ly/pMMQX) by LOLIPOP is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+
+
+"Tree low poly lowpoly" () by 00amza is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+
+"Oak trees pack (17var, LODs, seasons, gameready)" (https://skfb.ly/pNwKz) by LOLIPOP is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).

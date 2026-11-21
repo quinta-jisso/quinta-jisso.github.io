@@ -1,0 +1,58 @@
+{
+ "build": 1795292568,
+ "pages": 50,
+ "cards": [
+  {
+   "page": 17,
+   "hinge": "left",
+   "corners": [
+    [
+     0.0513,
+     0.73372
+    ],
+    [
+     0.47297,
+     0.72666
+    ],
+    [
+     0.47756,
+     1.0007
+    ],
+    [
+     0.0559,
+     1.00777
+    ]
+   ],
+   "base": "p17-base.jpg",
+   "open": "p17-open.jpg",
+   "front": "p17-card.jpg",
+   "back": "p17-cardback.jpg"
+  },
+  {
+   "page": 20,
+   "hinge": "top",
+   "corners": [
+    [
+     0.05651,
+     0.56397
+    ],
+    [
+     0.47698,
+     0.56228
+    ],
+    [
+     0.47795,
+     0.80418
+    ],
+    [
+     0.05748,
+     0.80587
+    ]
+   ],
+   "base": "p20-base.jpg",
+   "open": "p20-open.jpg",
+   "front": "p20-card.jpg",
+   "back": "p20-cardback.jpg"
+  }
+ ]
+}

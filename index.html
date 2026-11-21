@@ -1,0 +1,82 @@
+<!doctype html>
+<!--
+  Quinta Jissô — créditos (a lista completa está em CREDITS.md, na raiz do repositório)
+
+  Árvores e erva (modelos 3D reduzidos e adaptados para este site):
+    · "Oak trees pack (17var, LODs, seasons, gameready)", de LOLIPOP — https://skfb.ly/pNwKz — CC BY 4.0
+    · "Grass pack (lowpoly, game-ready)", de LOLIPOP — https://skfb.ly/pMMQX — CC BY 4.0
+    · "Tree low poly lowpoly", de 00amza — CC BY 4.0
+    CC BY 4.0: http://creativecommons.org/licenses/by/4.0/
+
+  Sons:
+    · Chuva e trovões: DRAGON-STUDIO, Pixabay
+    · Galinhas: freesound_community, Pixabay
+    · Grilos: felix_quinol, Pixabay
+    · Galo: "Medium rooster crowing", alys, Wikimedia Commons (domínio público)
+
+  A casa e o livro:
+    A Quinta Jissô foi modelada a partir de fotografias. As páginas são do livro de visitas original.
+-->
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quinta Jissô — livro de visitas</title>
+<meta name="description" content="Uma homenagem à Quinta Jissô e às palavras de quem por lá passou.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Karla:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="scene" aria-label="Vista 3D da Quinta Jissô"></canvas>
+
+<div id="loader">
+  <div class="loader-inner">
+    <p class="loader-title">Quinta Jissô</p>
+    <div class="bar"><i id="bar"></i></div>
+    <p class="loader-note" id="loadnote">a abrir o portão…</p>
+  </div>
+</div>
+
+<header id="intro" class="hidden">
+  <p class="eyebrow">Ilha Terceira · Açores</p>
+  <h1>Quinta <em>Jissô</em></h1>
+  <p class="lede">Uma casa de madeira suspensa sobre a encosta, rodeada de verde e aberta à paisagem.<br>
+  E um livro onde quem passou deixou umas palavras.</p>
+  <div class="actions">
+    <button id="open" class="primary">Abrir o livro de visitas</button>
+    <span class="hint">arraste para olhar à volta · roda do rato para aproximar</span>
+  </div>
+</header>
+
+<button id="sound" class="round off" aria-pressed="false" aria-label="Som">
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor" stroke="none"/>
+    <path class="waves" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>
+    <path class="mute" d="M15.5 9.5l5 5m0-5l-5 5"/>
+  </svg>
+</button>
+
+<nav id="bookui" class="hidden" aria-label="Livro de visitas">
+  <button id="back" class="ghost">← Voltar à quinta</button>
+  <div class="pager">
+    <button id="prev" class="round" aria-label="Página anterior">‹</button>
+    <span id="label">Livro de visitas</span>
+    <button id="next" class="round" aria-label="Página seguinte">›</button>
+  </div>
+  <button id="read" class="ghost">Ler de perto</button>
+  <p id="cardhint" class="hidden">Há um cartão colado nesta página — <span class="mouse">clique</span><span class="touch">toque</span> nele para o virar</p>
+</nav>
+
+<div id="lightbox" class="hidden" role="dialog" aria-label="Páginas ampliadas">
+  <button id="closelb" class="ghost">Fechar ✕</button>
+  <div id="lbpages"></div>
+</div>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>
