@@ -87,7 +87,7 @@
   E um livro onde quem passou deixou umas palavras.</p>
   <div class="actions">
     <button id="open" class="primary">Abrir o livro de visitas</button>
-    <span class="hint">arraste para olhar à volta · roda do rato para aproximar</span>
+    <span class="hint">arraste para olhar à volta · <span class="mouse">roda do rato</span><span class="touch">dois dedos</span> para aproximar</span>
   </div>
 </header>
 
@@ -111,6 +111,7 @@
 </nav>
 
 <div id="lightbox" class="hidden" role="dialog" aria-label="Páginas ampliadas">
+  <button id="zoomlb" class="ghost" aria-pressed="false">Ampliar +</button>
   <button id="closelb" class="ghost">Fechar ✕</button>
   <div id="lbpages"></div>
 </div>

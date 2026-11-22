@@ -404,7 +404,7 @@ function updateCards(dt) {
     c.bend = 0.34 * Math.sin(Math.PI * k) + 0.9 * CARD.peek * lift * (1 - k);
     if (c.angle !== c.shown || c.laid !== c.sheet.laid) layoutCard(c);
   }
-  if (pendingTurn !== null && cards.every((c) => c.t === 0)) { const k = pendingTurn; pendingTurn = null; setTurned(k); }
+  if (pendingTurn !== null && cards.every((c) => c.t === 0)) { const k = pendingTurn; pendingTurn = null; setTurned(k, pendingSide); }
 }
 /** Lays every card back on its page, briskly: a page is about to turn. True if there was one to lay back. */
 function closeCards() {
@@ -481,19 +481,35 @@ function buildBook() {
   const lamp = new THREE.PointLight('#fff1dc', 0.5, 5, 1.2); lamp.position.copy(TABLE).add(new THREE.Vector3(0, 1.6, 0)); scene.add(lamp); weather.bookLamp = lamp;
 }
 
-function pagesShown() {
+function pagesShown(t = turned) {
   // sheet k: front = page 2k-1, back = page 2k; sheet 0 and the last one are the covers
-  const left = turned >= 2 ? 2 * (turned - 1) : null, right = turned >= 1 && turned <= sheets.length - 2 ? 2 * turned - 1 : null;
+  const left = t >= 2 ? 2 * (t - 1) : null, right = t >= 1 && t <= sheets.length - 2 ? 2 * t - 1 : null;
   return [left && left <= PAGES ? left : null, right && right <= PAGES ? right : null];
 }
-function setTurned(k) {
+/* On an upright phone two pages side by side are too small to read, so the book is shown one page at a time (oneUp, set in
+   fitBook): `side` says which half of the open book is in view, 0 the left page and 1 the right one. */
+let oneUp = false, side = 1, pendingSide = 1;
+function inView() { const [l, r] = pagesShown(); return oneUp ? (side ? [null, r] : [l, null]) : [l, r]; }
+// is there something to see on that half of the book, with t sheets turned? (the closed covers, or a written page)
+const stop = (t, s) => (t === 0 ? s === 1 : t === sheets.length ? s === 0 : !!pagesShown(t)[s]);
+/** One step on in the book (dir 1) or back (-1): a whole spread, or a single page when one page is shown at a time. */
+function step(dir) {
+  if (!oneUp) { setTurned(turned + dir); return; }
+  let t = turned, s = side;
+  do {
+    if (dir > 0) { if (s) { t++; s = 0; } else s = 1; } else if (s) s = 0; else { t--; s = 1; }
+  } while (t >= 0 && t <= sheets.length && !stop(t, s));
+  if (t >= 0 && t <= sheets.length) setTurned(t, s);
+}
+function setTurned(k, s = side) {
   k = clamp(k, 0, sheets.length);
   // a card that is turned over is laid back on its page first; the page turns once it is down (updateCards)
-  if (k !== turned && closeCards()) { pendingTurn = k; return; }
-  const was = pagesShown();
-  turned = k;
-  sheets.forEach((s) => { s.target = s.index < turned ? 1 : 0; });
-  const [l, r] = pagesShown();
+  if (k !== turned && closeCards()) { pendingTurn = k; pendingSide = s; return; }
+  const was = inView();
+  turned = k; side = s;
+  if (oneUp && !stop(turned, side)) side = 1 - side;
+  sheets.forEach((sh) => { sh.target = sh.index < turned ? 1 : 0; });
+  const [l, r] = inView();
   $('label').textContent = turned === 0 ? 'Livro de visitas' : turned >= sheets.length - 1 && !l && !r ? 'Fim' :
     (l && r ? `páginas ${l}–${r} de ${PAGES}` : `página ${l || r} de ${PAGES}`);
   $('prev').disabled = turned === 0; $('next').disabled = turned === sheets.length;
@@ -516,30 +532,44 @@ const aim = new THREE.PerspectiveCamera();      // carries the orientation we ar
 const pointer = { x: 0, y: 0 };
 let lastInput = -10, clock = 0;
 
+// An upright screen shows a narrow slice of the garden: the camera stands further back there, so the whole house still fits.
+let stepBack = 1;
 function exteriorPose(out, look) {
   const sway = reduceMotion ? 0 : Math.sin(clock * 0.06) * 0.22 * clamp((clock - lastInput - 4) / 6, 0, 1);
   const az = clamp(orbit.az + sway, LIMIT.azMin, LIMIT.azMax);
   const el = clamp(orbit.el, LIMIT.elMin, LIMIT.elMax);
-  out.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(orbit.r).add(orbit.target);
+  out.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(orbit.r * stepBack).add(orbit.target);
   look.copy(orbit.target); look.y += LIMIT.lookUp;          // aim a little high: the sky is half the weather
 }
 // Frame the open spread so that all of it sits inside the area the buttons leave free.
-let bookFit = { lz: 0, d: 1.2 };
+let bookFit = { lz: 0, d: 1.2, half: 0.34 };
+// Over the book two fingers bring the page closer (zoom, 1 = the whole page or spread) and one finger then moves it about (x, z: metres).
+const view = { zoom: 1, x: 0, z: 0 }, ZOOM_MAX = 4;
+const metresPerPixel = (zoom = view.zoom) => (2 * bookFit.d * bookFit.half) / (zoom * innerHeight);
+function clampView() {
+  view.zoom = clamp(view.zoom, 1, ZOOM_MAX);
+  const reach = bookFit.d * bookFit.half * (1 - 1 / view.zoom);          // never further than what is in the picture when not zoomed
+  view.x = clamp(view.x, -reach * camera.aspect, reach * camera.aspect); view.z = clamp(view.z, -reach, reach);
+}
 const UP_Y = new THREE.Vector3(0, 1, 0), UP_BOOK = new THREE.Vector3(0, 0, -1);   // over the book, 'up' on screen is the house side
 function fitBook() {
   if (!innerWidth || !innerHeight) return;     // (no window size yet: see resize)
   // Straight down, so the spread is an undistorted rectangle: size it to the free area and centre it there.
-  const top = (78 / innerHeight) * 2, bottom = (104 / innerHeight) * 2;        // NDC kept clear for the buttons
+  const low = innerHeight < 520;                                                // a phone on its side: every pixel of height counts
+  const top = ((low ? 60 : 78) / innerHeight) * 2, bottom = ((low ? 78 : 104) / innerHeight) * 2;   // NDC kept clear for the buttons
   const half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), aspect = innerWidth / innerHeight;
-  const dW = (PW * 1.07) / (0.95 * half * aspect);
+  const was = oneUp; oneUp = aspect < 0.8;
+  const dW = (PW * (oneUp ? 0.55 : 1.07)) / (0.95 * half * aspect);
   const dH = (PH * 0.54) / (half * (1 - (top + bottom) / 2));
-  const d = Math.max(dW, dH, 0.45);
-  bookFit = { d, lz: ((bottom - top) / 2) * d * half };
+  const d = Math.max(dW, dH, 0.3);
+  bookFit = { d, half, lz: ((bottom - top) / 2) * d * half };
+  clampView();
+  if (was !== oneUp && sheets.length) setTurned(turned);       // the label and the hints follow what is in view
 }
 function bookPose(out, look) {
   const { lz, d } = bookFit;
-  look.set(TABLE.x, TABLE.y, TABLE.z + lz);
-  out.set(look.x, look.y + d, look.z);
+  look.set(TABLE.x + (oneUp ? (side ? 0.51 : -0.51) * PW : 0) + view.x, TABLE.y, TABLE.z + lz + view.z);
+  out.set(look.x, look.y + d / view.zoom, look.z);
 }
 function goto(next) {
   if (mode === next) return;
@@ -548,14 +578,49 @@ function goto(next) {
   $('intro').classList.toggle('hidden', next === 'book');
   $('bookui').classList.toggle('hidden', next !== 'book');
   if (next !== 'book') closeCards();
+  view.zoom = 1; view.x = view.z = 0;
   if (next === 'book') setTimeout(() => { if (mode === 'book' && turned === 0) setTurned(1); }, reduceMotion ? 300 : 3300);
 }
 
 // ------------------------------------------------------------------ input
-let drag = null;
-canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, az: orbit.az, el: orbit.el, moved: 0 }; canvas.setPointerCapture(e.pointerId); });
+let drag = null, pinch = null, lastTap = -1;
+const fingers = new Map();     // every finger (or the mouse button) that is down on the picture
+const zoomed = () => view.zoom > 1.02;
+function startDrag(e, afterPinch) {
+  // (afterPinch: the finger left on the glass when a pinch ends may move the page about, but it is not a tap and turns no page)
+  drag = { x: e.clientX, y: e.clientY, az: orbit.az, el: orbit.el, vx: view.x, vz: view.z, moved: afterPinch ? 99 : 0, afterPinch };
+}
+function pinchNow() {
+  const [a, b] = [...fingers.values()];
+  return { d: Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)), x: (a.x + b.x) / 2 - innerWidth / 2, y: (a.y + b.y) / 2 - innerHeight / 2 };
+}
+canvas.addEventListener('pointerdown', (e) => {
+  fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* (a pointer that is already gone) */ }
+  if (fingers.size === 1) startDrag(e, false);
+  else if (fingers.size === 2) {
+    if (drag && drag.sheet) setTurned(turned);      // a page that was being dragged across goes back where it was
+    drag = null; pinch = pinchNow();
+  }
+});
 canvas.addEventListener('pointermove', (e) => {
   pointer.x = (e.clientX / innerWidth) * 2 - 1; pointer.y = (e.clientY / innerHeight) * 2 - 1;
+  if (fingers.has(e.pointerId)) fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && fingers.size >= 2) {
+    // two fingers: apart to come closer, together to step back
+    const now = pinchNow();
+    if (mode === 'exterior') { orbit.r = clamp(orbit.r * pinch.d / now.d, LIMIT.rMin, LIMIT.rMax); lastInput = clock; }
+    else if (fly.t >= 1) {
+      const before = metresPerPixel();
+      view.zoom = clamp(view.zoom * now.d / pinch.d, 1, ZOOM_MAX);
+      const after = metresPerPixel();
+      // the spot of the page under the fingers stays under them
+      view.x += pinch.x * before - now.x * after; view.z += pinch.y * before - now.y * after;
+      clampView();
+    }
+    pinch = now;
+    return;
+  }
   if (cards.length && e.pointerType === 'mouse' && (!drag || drag.moved <= 8)) {
     // a card under the pointer lifts its edge: it can be turned over
     const over = cardAt(e); cards.forEach((c) => { c.hover = c === over; });
@@ -564,7 +629,10 @@ canvas.addEventListener('pointermove', (e) => {
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
   if (mode === 'exterior') {
     orbit.az = clamp(drag.az - dx * 0.005, LIMIT.azMin, LIMIT.azMax); orbit.el = clamp(drag.el + dy * 0.004, LIMIT.elMin, LIMIT.elMax); lastInput = clock;
-  } else if (drag.moved > 8) {
+  } else if (zoomed()) {
+    // close to the page: the finger moves the page about
+    view.x = drag.vx - dx * metresPerPixel(); view.z = drag.vz - dy * metresPerPixel(); clampView();
+  } else if (drag.moved > 8 && !oneUp && !drag.afterPinch) {
     cards.forEach((c) => { c.hover = false; });
     // drag a page across: the sheet follows the finger (once a card that was turned over is back on its page)
     if (!drag.sheet && (closeCards() || pendingTurn !== null)) return;
@@ -579,32 +647,48 @@ canvas.addEventListener('pointermove', (e) => {
     }
   }
 });
-canvas.addEventListener('pointerup', (e) => {
-  if (!drag) return;
-  if (mode === 'book') {
-    const card = !drag.sheet && drag.moved < 8 ? cardAt(e) : null;
+function release(e, cancelled) {
+  const was = fingers.delete(e.pointerId);
+  if (pinch) {
+    pinch = null;
+    if (view.zoom < 1.08) { view.zoom = 1; view.x = view.z = 0; }      // nearly all the way back: settle on the whole page
+    if (fingers.size === 1) { const [f] = fingers.values(); startDrag({ clientX: f.x, clientY: f.y }, true); }
+    return;
+  }
+  if (!drag || !was) return;
+  if (mode === 'book' && cancelled) { if (drag.sheet) setTurned(turned); }
+  else if (mode === 'book') {
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    const tap = drag.moved < 8, card = !drag.sheet && tap ? cardAt(e) : null;
     if (card) flipCard(card);                    // a click on a card turns the card, not the page
     else if (drag.sheet) setTurned(turned + (drag.sheet.p > 0.28 ? (drag.sheet.forward ? 1 : -1) : 0));
-    else if (drag.moved < 8) setTurned(turned + (e.clientX > innerWidth / 2 ? 1 : -1));
+    else if (zoomed()) {
+      // close to the page a tap turns nothing; two quick taps go back to the whole page
+      if (tap && clock - lastTap < 0.4) { view.zoom = 1; view.x = view.z = 0; lastTap = -1; } else if (tap) lastTap = clock;
+    }
+    else if (tap) step(e.clientX > innerWidth / 2 ? 1 : -1);
+    else if (oneUp && !drag.afterPinch && Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.3) step(dx < 0 ? 1 : -1);   // one page at a time: a swipe turns it
   }
   drag = null;
-});
+}
+canvas.addEventListener('pointerup', (e) => release(e, false));
+canvas.addEventListener('pointercancel', (e) => release(e, true));
 canvas.addEventListener('pointerleave', () => { cards.forEach((c) => { c.hover = false; }); });
 canvas.addEventListener('wheel', (e) => { if (mode === 'exterior') { orbit.r = clamp(orbit.r * (1 + e.deltaY * 0.001), LIMIT.rMin, LIMIT.rMax); lastInput = clock; } e.preventDefault(); }, { passive: false });
 addEventListener('keydown', (e) => {
   if (!$('lightbox').classList.contains('hidden')) { if (e.key === 'Escape') $('lightbox').classList.add('hidden'); return; }
   if (mode !== 'book') return;
-  if (e.key === 'ArrowRight' || e.key === ' ') setTurned(turned + 1);
-  if (e.key === 'ArrowLeft') setTurned(turned - 1);
+  if (e.key === 'ArrowRight' || e.key === ' ') step(1);
+  if (e.key === 'ArrowLeft') step(-1);
   if (e.key === 'Escape') goto('exterior');
 });
 $('open').onclick = () => goto('book');
 $('back').onclick = () => goto('exterior');
-$('next').onclick = () => setTurned(turned + 1);
-$('prev').onclick = () => setTurned(turned - 1);
+$('next').onclick = () => step(1);
+$('prev').onclick = () => step(-1);
 $('read').onclick = () => {
-  const box = $('lbpages'); box.replaceChildren();
-  pagesShown().filter(Boolean).forEach((p) => {
+  const box = $('lbpages'); box.replaceChildren(); setBig(false);
+  inView().filter(Boolean).forEach((p) => {
     const img = new Image(), card = cards.find((c) => c.page === p);
     img.alt = `Página ${p} do livro de visitas`;
     if (card) {
@@ -618,6 +702,9 @@ $('read').onclick = () => {
   });
   $('lightbox').classList.remove('hidden');
 };
+// on a small screen the scan can be shown at more than twice the width of the screen, and moved about with a finger
+function setBig(on) { $('lbpages').classList.toggle('big', on); $('zoomlb').textContent = on ? 'Reduzir −' : 'Ampliar +'; $('zoomlb').setAttribute('aria-pressed', on); }
+$('zoomlb').onclick = () => setBig(!$('lbpages').classList.contains('big'));
 $('closelb').onclick = () => $('lightbox').classList.add('hidden');
 $('lightbox').addEventListener('click', (e) => { if (e.target.id === 'lbpages' || e.target.id === 'lightbox') $('lightbox').classList.add('hidden'); });
 
@@ -626,6 +713,7 @@ function resize() {
   if (!innerWidth || !innerHeight) return;     // a window with no size yet (a pane still closed): wait for its real one
   renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  stepBack = clamp(0.87 / camera.aspect, 1, 2.1);
   fitBook();
 }
 addEventListener('resize', resize); resize();
@@ -689,7 +777,7 @@ function frame(now) {
     requestAnimationFrame(frame);
     setTimeout(() => { $('loader').classList.add('hidden'); $('intro').classList.remove('hidden'); }, 350);
     const advance = (sec) => { for (let t = 0; t < sec; t += 1 / 30) update(1 / 30); renderer.render(scene, camera); };   // for scripted checks
-    window.__quinta = { goto, setTurned, sheets, layoutSheet, advance, cards, flipCard, book, camera, weather, sound, plants, get turned() { return turned; }, orbit, renderer, scene, quality, governor };
+    window.__quinta = { goto, setTurned, step, view, get oneUp() { return oneUp; }, get side() { return side; }, sheets, layoutSheet, advance, cards, flipCard, book, camera, weather, sound, plants, get turned() { return turned; }, orbit, renderer, scene, quality, governor };
   } catch (err) {
     console.error(err);
     $('loadnote').textContent = 'não foi possível carregar a quinta — abra através de um servidor local';
