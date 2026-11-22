@@ -1,8 +1,9 @@
 /* Sound for the quinta, all of it quiet background:
      rain.mp3     loops while it rains
-     birds.mp3    dawn chorus: starts in the dark before sunrise, fades through the morning
+     birds.mp3    dawn chorus: starts in the dark before sunrise, fades through the morning; back for a while before dusk
      rooster.mp3  once, at sunrise
-     hens.mp3     soft clucking somewhere in the yard, now and then: a bout, then quiet; through the day, stopping at dusk
+     hens.mp3     soft clucking somewhere in the yard, now and then: a bout, then quiet; in the middle of the day only,
+                  between the two times the birds sing (birds and hens together are a muddle, so the hens wait their turn)
      crickets.mp3 one cricket, chirp after chirp; at night it is played as several crickets around the garden,
                   now a few together, now just one or another
      thunder1-4   single claps; the weather calls strike() at each lightning flash and the thunder follows
@@ -201,11 +202,12 @@ export function createSound(button) {
       // dawn chorus: starts in the dark before sunrise, fades through the morning; a quieter return after the rain
       const dawn = Math.min(ramp(0.05, 0.105, p), 1 - ramp(0.30, 0.42, p));
       const evening = Math.min(ramp(0.655, 0.72, p), 1 - ramp(0.80, 0.89, p)) * 0.55;
-      const birds = Math.max(dawn, evening, 0) * (1 - rain);
+      const chorus = Math.max(dawn, evening, 0), birds = chorus * (1 - rain);
       if (layer.rain) layer.rain.gain.setTargetAtTime(LEVEL.rain * rain, t, 0.8);
       if (layer.birds) layer.birds.gain.setTargetAtTime(LEVEL.birds * birds, t, 0.8);
-      // hens: quiet clucking once the sun is up, gone by dusk, and under cover while it rains (the bouts come on top of this)
-      const hens = Math.min(ramp(0.13, 0.19, p), 1 - ramp(0.79, 0.855, p)) * (1 - rain);
+      // hens: quiet clucking once the sun is up, gone by dusk, and under cover while it rains (the bouts come on top of this).
+      // They keep quiet while the birds sing: they come in as the morning chorus dies away and go as the evening one starts.
+      const hens = Math.min(ramp(0.13, 0.19, p), 1 - ramp(0.79, 0.855, p)) * (1 - rain) * (1 - ramp(0.02, 0.3, chorus));
       if (layer.hens) layer.hens.gain.setTargetAtTime(LEVEL.hens * Math.max(hens, 0), t, 1.5);
       // crickets: they start up as the light goes after sunset and hand over to the birds before sunrise
       night = (p > 0.5 ? ramp(0.845, 0.9, p) : 1 - ramp(0.05, 0.1, p)) * (1 - rain);

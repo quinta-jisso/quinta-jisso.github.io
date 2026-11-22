@@ -19,6 +19,7 @@ Usados em `assets/plants.glb`, reduzidos e adaptados para o site.
 | `rain.mp3` | "relaxing rain" (`dragon-studio-relaxing-rain-444802.mp3`) | DRAGON-STUDIO, Pixabay | Pixabay Content License |
 | `thunder1.mp3` – `thunder4.mp3` | "dry thunder" (`dragon-studio-dry-thunder-364468.mp3`) | DRAGON-STUDIO, Pixabay | Pixabay Content License |
 | `hens.mp3` | "little chicken" (`freesound_community-little-chicken-22922.mp3`) | freesound_community, Pixabay | Pixabay Content License |
+| `birds.mp3` | "morning birdsong" (`creative_spark-morning-birdsong-246402.mp3`) | creative_spark, Pixabay | Pixabay Content License |
 | `crickets.mp3` | "cricket sound" (`felix_quinol-cricket-sound-113945.mp3`) | felix_quinol, Pixabay | Pixabay Content License |
 | `rooster.mp3` | ["Medium rooster crowing.ogg"](https://commons.wikimedia.org/wiki/File:Medium_rooster_crowing.ogg) | alys (pdsounds.org), Wikimedia Commons | Domínio público |
 

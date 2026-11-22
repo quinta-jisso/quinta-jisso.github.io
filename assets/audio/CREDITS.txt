@@ -4,8 +4,8 @@ rain.mp3      — 55 s de "relaxing rain" (ficheiro dragon-studio-relaxing-rain-
 thunder1-4    — quatro trovões de "dry thunder" (dragon-studio-dry-thunder-364468.mp3) — DRAGON-STUDIO, Pixabay — Pixabay Content License
 hens.mp3      — 54 s de "little chicken" (freesound_community-little-chicken-22922.mp3) — freesound_community, Pixabay — Pixabay Content License
 crickets.mp3  — 7 s de "cricket sound" (felix_quinol-cricket-sound-113945.mp3), só o grilo mais próximo, com silêncio entre os cricris (tools/prepare_crickets.py) — felix_quinol, Pixabay — Pixabay Content License
+birds.mp3     — 29 s de "morning birdsong" (creative_spark-morning-birdsong-246402.mp3), sem o ruído grave de fundo (tools/prepare_birds.py) — creative_spark, Pixabay — Pixabay Content License
 rooster.mp3   — "Medium rooster crowing.ogg" — alys (pdsounds.org), Wikimedia Commons — Public domain — https://commons.wikimedia.org/wiki/File:Medium_rooster_crowing.ogg
 
 Nota: a origem Pixabay foi deduzida dos nomes dos ficheiros; confirmar.
 Os ficheiros foram cortados e nivelados para o site (ver os originais na raiz do projeto).
-Falta: birds.mp3 (pássaros de madrugada).
