@@ -1,8 +1,8 @@
 /* How much this computer is asked to draw.
 
    Two levels, chosen before anything is drawn:
-     high — a dedicated graphics card: the whole forest, the big trees, smoothed edges
-     low  — the graphics built into an ordinary office PC, or a phone: a lighter forest, no edge smoothing
+     high: a dedicated graphics card: the whole forest, the big trees, smoothed edges
+     low:  the graphics built into an ordinary office PC, or a phone: a lighter forest, no edge smoothing
    Then, while the site runs, the governor below watches the real frame rate and draws the picture with
    fewer pixels whenever the computer cannot keep up (and with more again once it can).
 

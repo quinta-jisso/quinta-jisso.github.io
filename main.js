@@ -6,7 +6,7 @@ import { createSound } from './audio.js';
 import { createPlants } from './plants.js';
 import { pickQuality, createGovernor, rememberLow, forgetLow } from './quality.js';
 
-/* Quinta Jissô — exterior scene + guest book.
+/* Quinta Jissô: exterior scene + guest book.
    Model coordinates come from Blender (Z up); glTF/three is Y up: (x, y, z) -> (x, z, -y).
    The view side of the house (fields, sea) is +Z here. */
 
@@ -780,6 +780,6 @@ function frame(now) {
     window.__quinta = { goto, setTurned, step, view, get oneUp() { return oneUp; }, get side() { return side; }, sheets, layoutSheet, advance, cards, flipCard, book, camera, weather, sound, plants, get turned() { return turned; }, orbit, renderer, scene, quality, governor };
   } catch (err) {
     console.error(err);
-    $('loadnote').textContent = 'não foi possível carregar a quinta — abra através de um servidor local';
+    $('loadnote').textContent = 'não foi possível carregar a quinta: abra através de um servidor local';
   }
 })();

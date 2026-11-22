@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /* The forest and the grass. Models come from assets/plants.glb (built by tools/build_plants.py from
-   CC BY 4.0 packs — see assets/CREDITS-3D.txt); positions come from assets/trees.json, laid out in
+   CC BY 4.0 packs; see assets/CREDITS-3D.txt); positions come from assets/trees.json, laid out in
    Blender together with the house. Everything is drawn as instances: one draw call per model part.
 
    Leaves are most of what the graphics card has to do here, so three things keep them cheap:
@@ -124,7 +124,7 @@ function heightField(ground) {
   };
 }
 
-/** quality: what this computer can take (see quality.js) — how much forest and grass, which trees, who casts and takes shadows */
+/** quality: what this computer can take (see quality.js): how much forest and grass, which trees, who casts and takes shadows */
 export async function createPlants({ scene, renderer, trees, ground, version = '', quality }) {
   const wind = { uTime: { value: 0 }, uWind: { value: 1 } }, sky = skyLight(scene);
   const gltf = await new GLTFLoader().loadAsync('assets/plants.glb' + version);
@@ -139,7 +139,7 @@ export async function createPlants({ scene, renderer, trees, ground, version = '
     return mats.get(key);
   };
 
-  /** list: [{ m: matrix, c: colour, s: scale, d: how near the camera's side }] — drawn nearest first.
+  /** list: [{ m: matrix, c: colour, s: scale, d: how near the camera's side }], drawn nearest first.
       order: when the whole lot is drawn (lower = earlier) */
   const lots = [], centre = new THREE.Vector3();
   const add = (name, list, { tint = false, shadow = false, receive = true, order = 0 } = {}) => {

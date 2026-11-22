@@ -18,8 +18,10 @@ const CRICKETS = [{ rate: 1, pan: -0.5, gain: 1 }, { rate: 0.9, pan: 0.6, gain: 
   { rate: 0.95, pan: -0.9, gain: 0.35 }, { rate: 1.13, pan: 0.9, gain: 0.3 }];
 // How many may sing at once. One is drawn every few seconds, so most of the time it is a lone cricket and now and then a small chorus.
 const CROWDS = [1, 1, 1, 2, 2, 3, 4];
-// The hens are heard in bouts: each lasts `bout` seconds at some share (`level`) of LEVEL.hens, then `gap` seconds of quiet.
-const HENS = { bout: [5, 15], gap: [4, 30], level: [0.3, 1] };
+// The hens are heard in bouts: each comes up slowly over `rise` seconds (the first one of a visit over `firstRise`, and no
+// louder than `firstLevel`), stays `bout` seconds at some share (`level`) of LEVEL.hens, goes away over `fall` seconds,
+// and then there are `gap` seconds of quiet.
+const HENS = { rise: [3.5, 5.5], firstRise: 7, firstLevel: 0.6, bout: [3, 10], fall: [2.5, 4], gap: [4, 30], level: [0.3, 1] };
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const ramp = (a, b, v) => clamp((v - a) / (b - a), 0, 1);
 const between = (a, b) => a + Math.random() * (b - a);
@@ -78,16 +80,20 @@ export function createSound(button) {
   // on the audio clock, so a slowed timer (hidden tab) only stretches the quiet and a suspended context just pauses it.
   function bouts() {
     const out = ctx.createGain(); out.gain.value = 0; out.connect(master);
-    let next = ctx.currentTime + between(1, 6);
+    // the way in: hardly anything at first, then more and more (a straight line is heard as a sound that is suddenly there)
+    const slow = new Float32Array(48).map((v, i) => (i / 47) ** 2.4);
+    let next = ctx.currentTime + between(2, 6), first = true;
     const tick = () => {
       const t = ctx.currentTime;
       if (t >= next && ctx.state === 'running') {
-        const at = t + 0.1, len = between(...HENS.bout), a = between(...HENS.level), b = between(...HENS.level);
-        const rise = between(1.2, 2.5), fall = between(2, 3.5), g = out.gain;
-        // up to one level, drifting to another, and away; it starts from the silence the last bout ended in
-        g.cancelScheduledValues(at); g.setValueAtTime(0, at);
-        g.linearRampToValueAtTime(a, at + rise); g.linearRampToValueAtTime(b, at + len - fall); g.linearRampToValueAtTime(0, at + len);
-        next = at + len + between(...HENS.gap);
+        const rise = first ? HENS.firstRise : between(...HENS.rise), fall = between(...HENS.fall), stay = between(...HENS.bout);
+        const top = first ? HENS.firstLevel : 1, a = Math.min(top, between(...HENS.level)), b = Math.min(top, between(...HENS.level));
+        const at = t + 0.1, len = rise + stay + fall, g = out.gain;
+        // slowly up to one level, drifting to another, and away; it starts from the silence the last bout ended in
+        g.cancelScheduledValues(at);
+        g.setValueCurveAtTime(slow.map((v) => v * a), at, rise);
+        g.linearRampToValueAtTime(b, at + rise + stay); g.linearRampToValueAtTime(0, at + len);
+        next = at + len + between(...HENS.gap); first = false;
       }
       setTimeout(tick, 1000);
     };

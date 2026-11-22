@@ -87,7 +87,7 @@ function makeNoise() {
     return lerp(lerp(at(ix, iy), at(ix + 1, iy), fx), lerp(at(ix, iy + 1), at(ix + 1, iy + 1), fx), fy);
   };
   const fbm = (x, y, oct, norm) => { let a = 0.5, sum = 0; for (let i = 0; i < oct; i++) { sum += a * vn(x, y); x = x * 2.02 + 37; y = y * 2.02 + 11; a *= 0.5; } return sum / norm; };
-  /** cloud density (0..1) at a point of the cloud layer — mirrors cloudD() in the shader */
+  /** cloud density (0..1) at a point of the cloud layer; mirrors cloudD() in the shader */
   const density = (x, y, cover) => {
     const f = fbm(x, y, 5, 0.96875) * 0.78 + fbm(x * 3.1 + 9, y * 3.1 + 9, 3, 0.875) * 0.22, th = lerp(0.74, 0.30, cover);
     return sstep(th, th + 0.2, f);
@@ -284,7 +284,7 @@ export function createWeather({ scene, renderer, reduceMotion = false, quality =
 
   const api = {
     state, materials: {}, bookLamp: null, paused: false,
-    /** called for every lightning strike: { near, clip, delay } — the thunder follows `delay` seconds later */
+    /** called for every lightning strike: { near, clip, delay }: the thunder follows `delay` seconds later */
     onStrike: null,
     /** warm lamps under the veranda roofs; they come on at dusk and when the weather closes in */
     addHouseLights(deck) {

@@ -1,4 +1,4 @@
-# Créditos — Quinta Jissô
+# Créditos da Quinta Jissô
 
 Este site é uma homenagem à Quinta Jissô (Ilha Terceira, Açores) e às palavras de quem por lá passou.
 O que não foi feito de raiz para ele vem daqui. A mesma lista está, resumida, num comentário no topo de
